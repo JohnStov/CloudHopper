@@ -50,6 +50,9 @@
     <None Include="App.config" />
     <None Include="packages.config" />
     <None Include="SDL.dll" />
+    <None Include="player.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
   <PropertyGroup>
     <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">11</MinimumVisualStudioVersion>
