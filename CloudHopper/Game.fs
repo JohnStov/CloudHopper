@@ -22,11 +22,14 @@ let CreateActor (content:ContentManager) (textureName, position) =
 let DrawActor (sb:SpriteBatch) actor =
     sb.Draw (actor.Texture, actor.Position, Color.White)
 
+let (|InBounds|_|) (bounds : Rectangle) (a : Actor) =
+   if bounds.Contains a.Bounds then Some(a) else None
+
 let MoveActor (bounds : Rectangle) x y (a : Actor) =
-    if bounds.Contains a.Bounds then
-        { Position = new Vector2 ((float32 a.Position.X + x), (float32 a.Position.Y + y)); Size = a.Size; Texture = a.Texture }
-    else
-        a
+    let newPos = { Position = new Vector2 ((float32 a.Position.X + x), (float32 a.Position.Y + y)); Size = a.Size; Texture = a.Texture }
+    match newPos with
+    | InBounds bounds newPos -> newPos
+    | _ -> a
 
 type CloudHopperGame () as g =
     inherit Game()
@@ -42,7 +45,7 @@ type CloudHopperGame () as g =
 
     override g.Update gametime =
         let viewport = g.GraphicsDevice.Viewport.Bounds
-        actors <- actors |> List.map (MoveActor viewport 1.f 0.f)
+        actors <- actors |> List.map (MoveActor viewport 2.f 2.f)
 
     override g.Draw gametime =
         g.GraphicsDevice.Clear Color.CornflowerBlue
