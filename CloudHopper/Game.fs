@@ -19,6 +19,9 @@ let CreateActor (content:ContentManager) (textureName, position) =
 let DrawActor (sb:SpriteBatch) actor =
     sb.Draw (actor.Texture, actor.Position, Color.White)
 
+let MoveActor x y a =
+    { Position = new Vector2 ((float32 a.Position.X + x), (float32 a.Position.Y + y)); Size = a.Size; Texture = a.Texture }
+
 type CloudHopperGame () as g =
     inherit Game()
 
@@ -30,6 +33,9 @@ type CloudHopperGame () as g =
     override g.LoadContent () =
         spriteBatch <- new SpriteBatch(g.GraphicsDevice)
         actors <- actorData |> List.map (CreateActor g.Content)
+
+    override g.Update gametime =
+        actors <- actors |> List.map (MoveActor 1.f 0.f)
 
     override g.Draw gametime =
         g.GraphicsDevice.Clear Color.CornflowerBlue
