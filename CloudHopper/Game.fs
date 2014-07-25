@@ -24,14 +24,18 @@ let CreateActor (content:ContentManager) (textureName, position) =
 let DrawActor (sb:SpriteBatch) actor =
     sb.Draw (actor.Texture, actor.Position, Color.White)
 
-let (|InBounds|_|) (bounds : Rectangle) (a : Actor) =
-   if bounds.Contains a.Bounds then Some(a) else None
+let ForceInBounds (bounds : Rectangle) (a : Actor) =
+    let result = 
+        if bounds.Bottom < a.Bounds.Bottom then {a with Position = new Vector2(a.Position.X, float32 (bounds.Bottom - a.Bounds.Height))}
+        elif bounds.Top > a.Bounds.Top then {a with Position = new Vector2(a.Position.X, float32 bounds.Top)}
+        else a
+
+    if bounds.Left > result.Bounds.Left then {result with Position = new Vector2(float32 bounds.Left, result.Position.Y)}
+    else if bounds.Right < result.Bounds.Right then {result with Position = new Vector2(float32 (bounds.Right - a.Bounds.Width), result.Position.Y)}
+    else result
 
 let MoveActor (bounds : Rectangle) (a : Actor) =
-    let newPos = { a with Position = a.Position + a.Velocity }
-    match newPos with
-    | InBounds bounds newPos -> newPos
-    | _ -> a
+    ForceInBounds bounds { a with Position = a.Position + a.Velocity }
 
 let ApplyGravity (a : Actor) =
     let g = 0.05
