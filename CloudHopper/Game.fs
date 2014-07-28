@@ -13,6 +13,7 @@ type Actor =
         Size : Vector2;
         Texture : Texture2D;
         Velocity : Vector2;
+        ThrustAngle : int;
     }
 
     member this.Bounds 
@@ -21,7 +22,7 @@ type Actor =
 let CreateActor (content:ContentManager) (textureName, position) = 
     let tex = content.Load<Texture2D> textureName
     let size = new Vector2 ((float32 tex.Width), (float32 tex.Height))
-    { Position = position; Size = size; Texture = tex; Velocity = new Vector2(1.f, 0.f) }
+    { Position = position; Size = size; Texture = tex; Velocity = new Vector2(0.f, 0.f); ThrustAngle = 45 }
 
 let DrawActor (sb:SpriteBatch) actor =
     sb.Draw (actor.Texture, actor.Position, Color.White)
@@ -53,11 +54,30 @@ let ApplyGravity (a : Actor) =
     { a with Velocity = new Vector2 (a.Velocity.X, float32 downward) }
 
 let ApplyThrust (ks: KeyboardState) (a : Actor) =
-    let thrust = if ks.IsKeyDown(Keys.Space) then -0.1f else 0.0f
-    { a with Velocity = new Vector2 (a.Velocity.X, a.Velocity.Y+thrust) }
+    let thrust = if ks.IsKeyDown(Keys.Space) 
+                 then 
+                    let angle = (float (a.ThrustAngle) / 360.0) * (2.0 * Math.PI)
+                    new Vector2(float32 (Math.Sin angle), float32 (Math.Cos angle) * -1.f) * 0.1f
+                 else
+                    new Vector2(0.f, 0.f)
+
+    { a with Velocity = a.Velocity + thrust }
+
+let rec SetThrustAngle(ks: Keys []) (a : Actor) =
+    let CheckForArrow (a1 : Actor) (k : Keys) =
+        if k = Keys.Left
+        then 
+            { a1 with ThrustAngle = Math.Min (a1.ThrustAngle + 5, 90) }
+        elif k = Keys.Right
+        then 
+            { a1 with ThrustAngle = Math.Max (a1.ThrustAngle - 5, -90) }
+        else a1
+
+    Array.fold CheckForArrow a ks
 
 let UpdateActor bounds actor =
     actor 
+        |> SetThrustAngle (Keyboard.GetState().GetPressedKeys())
         |> ApplyThrust (Keyboard.GetState())
         |> ApplyGravity 
         |> MoveActor bounds
