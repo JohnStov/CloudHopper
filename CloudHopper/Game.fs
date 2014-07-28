@@ -3,7 +3,9 @@
 open Microsoft.Xna.Framework
 open Microsoft.Xna.Framework.Graphics
 open Microsoft.Xna.Framework.Content
+open Microsoft.Xna.Framework.Input
 open System
+open System.Windows.Input
 
 type Actor =
     {
@@ -26,12 +28,20 @@ let DrawActor (sb:SpriteBatch) actor =
 
 let ForceInBounds (bounds : Rectangle) (a : Actor) =
     let result = 
-        if bounds.Bottom < a.Bounds.Bottom then {a with Position = new Vector2(a.Position.X, float32 (bounds.Bottom - a.Bounds.Height))}
-        elif bounds.Top > a.Bounds.Top then {a with Position = new Vector2(a.Position.X, float32 bounds.Top)}
+        if bounds.Bottom < a.Bounds.Bottom 
+        then 
+            {a with Position = new Vector2(a.Position.X, float32 (bounds.Bottom - a.Bounds.Height)); Velocity = new Vector2(a.Velocity.X, 0.0f)}
+        elif bounds.Top > a.Bounds.Top 
+        then 
+            {a with Position = new Vector2(a.Position.X, float32 bounds.Top); Velocity = new Vector2(a.Velocity.X, 0.0f)}
         else a
 
-    if bounds.Left > result.Bounds.Left then {result with Position = new Vector2(float32 bounds.Left, result.Position.Y)}
-    else if bounds.Right < result.Bounds.Right then {result with Position = new Vector2(float32 (bounds.Right - a.Bounds.Width), result.Position.Y)}
+    if bounds.Left > result.Bounds.Left 
+    then 
+        {result with Position = new Vector2(float32 bounds.Left, result.Position.Y); Velocity = new Vector2(0.0f, a.Velocity.Y)}
+    else if bounds.Right < result.Bounds.Right 
+    then 
+        {result with Position = new Vector2(float32 (bounds.Right - a.Bounds.Width), result.Position.Y); Velocity = new Vector2(0.0f, a.Velocity.Y)}
     else result
 
 let MoveActor (bounds : Rectangle) (a : Actor) =
@@ -41,6 +51,16 @@ let ApplyGravity (a : Actor) =
     let g = 0.05
     let downward = Math.Min(double a.Velocity.Y + g, 5.0)
     { a with Velocity = new Vector2 (a.Velocity.X, float32 downward) }
+
+let ApplyThrust (ks: KeyboardState) (a : Actor) =
+    let thrust = if ks.IsKeyDown(Keys.Space) then -0.1f else 0.0f
+    { a with Velocity = new Vector2 (a.Velocity.X, a.Velocity.Y+thrust) }
+
+let UpdateActor bounds actor =
+    actor 
+        |> ApplyThrust (Keyboard.GetState())
+        |> ApplyGravity 
+        |> MoveActor bounds
 
 type CloudHopperGame () as g =
     inherit Game()
@@ -55,7 +75,8 @@ type CloudHopperGame () as g =
         actors <- actorData |> List.map (CreateActor g.Content)
 
     override g.Update _ =
-        actors <- actors |> List.map ApplyGravity |> List.map (MoveActor g.GraphicsDevice.Viewport.Bounds)
+        actors <- actors 
+            |> List.map (UpdateActor g.GraphicsDevice.Viewport.Bounds)
 
     override g.Draw _ =
         g.GraphicsDevice.Clear Color.CornflowerBlue
