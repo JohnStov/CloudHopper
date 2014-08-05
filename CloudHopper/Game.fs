@@ -7,8 +7,13 @@ open Microsoft.Xna.Framework.Input
 open System
 open System.Windows.Input
 
+type ActorType =
+    | Player
+    | Indicator
+
 type Actor =
     {
+        Type : ActorType;
         Position : Vector2;
         Size : Vector2;
         Texture : Texture2D;
@@ -19,13 +24,18 @@ type Actor =
     member this.Bounds 
         with get () = Rectangle ((int this.Position.X), (int this.Position.Y),(int this.Size.X), (int this.Size.Y))
 
-let CreateActor (content:ContentManager) (textureName, position) = 
+let CreateActor (content:ContentManager) (actorType, textureName, position) = 
     let tex = content.Load<Texture2D> textureName
     let size = new Vector2 ((float32 tex.Width), (float32 tex.Height))
-    { Position = position; Size = size; Texture = tex; Velocity = new Vector2(0.f, 0.f); ThrustAngle = 45 }
+    { Type = actorType; Position = position; Size = size; Texture = tex; Velocity = new Vector2(0.f, 0.f); ThrustAngle = 0 }
 
 let DrawActor (sb:SpriteBatch) actor =
-    sb.Draw (actor.Texture, actor.Position, Color.White)
+    match actor.Type with
+    | Player -> 
+        sb.Draw (actor.Texture, actor.Position, Color.White)
+    | Indicator ->
+        let angle = (float32 actor.ThrustAngle / 180.f) * float32 Math.PI
+        sb.Draw (actor.Texture, Nullable actor.Position, Nullable(), Nullable(), Nullable(), angle, Nullable(), Nullable(), SpriteEffects.None, 0.f)
 
 let ForceInBounds (bounds : Rectangle) (a : Actor) =
     let result = 
@@ -49,28 +59,34 @@ let MoveActor (bounds : Rectangle) (a : Actor) =
     ForceInBounds bounds { a with Position = a.Position + a.Velocity }
 
 let ApplyGravity (a : Actor) =
-    let g = 0.05
-    let downward = Math.Min(double a.Velocity.Y + g, 5.0)
-    { a with Velocity = new Vector2 (a.Velocity.X, float32 downward) }
+    match a.Type with
+    | Indicator ->  a
+    | Player ->  
+        let g = 0.05
+        let downward = Math.Min(double a.Velocity.Y + g, 5.0)
+        { a with Velocity = new Vector2 (a.Velocity.X, float32 downward) }
 
 let ApplyThrust (ks: KeyboardState) (a : Actor) =
-    let thrust = if ks.IsKeyDown(Keys.Space) 
-                 then 
-                    let angle = (float (a.ThrustAngle) / 360.0) * (2.0 * Math.PI)
-                    new Vector2(float32 (Math.Sin angle), float32 (Math.Cos angle) * -1.f) * 0.1f
-                 else
-                    new Vector2(0.f, 0.f)
+    match a.Type with
+    | Indicator ->  a
+    | Player ->  
+        let thrust = if ks.IsKeyDown(Keys.Space) 
+                     then 
+                        let angle = (float (a.ThrustAngle) / 360.0) * (2.0 * Math.PI)
+                        new Vector2(float32 (Math.Sin angle), float32 (Math.Cos angle) * -1.f) * 0.1f
+                     else
+                        new Vector2(0.f, 0.f)
 
-    { a with Velocity = a.Velocity + thrust }
+        { a with Velocity = a.Velocity + thrust }
 
 let rec SetThrustAngle(ks: Keys []) (a : Actor) =
     let CheckForArrow (a1 : Actor) (k : Keys) =
         if k = Keys.Left
         then 
-            { a1 with ThrustAngle = Math.Min (a1.ThrustAngle + 5, 90) }
+            { a1 with ThrustAngle = Math.Min (a1.ThrustAngle + 1, 90) }
         elif k = Keys.Right
         then 
-            { a1 with ThrustAngle = Math.Max (a1.ThrustAngle - 5, -90) }
+            { a1 with ThrustAngle = Math.Max (a1.ThrustAngle - 1, -90) }
         else a1
 
     Array.fold CheckForArrow a ks
@@ -88,7 +104,8 @@ type CloudHopperGame () as g =
     let graphics = new GraphicsDeviceManager(g)
     let mutable spriteBatch = Unchecked.defaultof<SpriteBatch>
     let mutable actors = []
-    let actorData = [("player.png", Vector2(10.f,28.f))]
+    let actorData = [(Player, "player.png", Vector2(10.f,28.f));
+                     (Indicator, "green_arrow.png", Vector2(50.f,28.f))]
 
     override g.LoadContent () =
         spriteBatch <- new SpriteBatch(g.GraphicsDevice)
