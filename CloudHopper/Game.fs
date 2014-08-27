@@ -10,6 +10,7 @@ open System.Windows.Input
 type ActorType =
     | Player
     | Indicator
+    | Obstacle
 
 type Actor =
     {
@@ -31,7 +32,8 @@ let CreateActor (content:ContentManager) (actorType, textureName, position) =
 
 let DrawActor (sb:SpriteBatch) actor =
     match actor.Type with
-    | Player -> 
+    | Player
+    | Obstacle -> 
         sb.Draw (actor.Texture, actor.Position, Color.White)
     | Indicator ->
         let angle = (float32 actor.ThrustAngle / 180.f) * float32 Math.PI
@@ -60,7 +62,8 @@ let MoveActor (bounds : Rectangle) (a : Actor) =
 
 let ApplyGravity (a : Actor) =
     match a.Type with
-    | Indicator ->  a
+    | Indicator
+    | Obstacle ->  a
     | Player ->  
         let g = 0.05
         let downward = Math.Min(double a.Velocity.Y + g, 5.0)
@@ -68,7 +71,8 @@ let ApplyGravity (a : Actor) =
 
 let ApplyThrust (ks: KeyboardState) (a : Actor) =
     match a.Type with
-    | Indicator ->  a
+    | Indicator
+    | Obstacle ->  a
     | Player ->  
         let thrust = if ks.IsKeyDown(Keys.Space) 
                      then 
@@ -91,12 +95,19 @@ let rec SetThrustAngle(ks: Keys []) (a : Actor) =
 
     Array.fold CheckForArrow a ks
 
-let UpdateActor bounds actor =
+let rec DetectCollision actors actor =
+    match actors with
+        h :: t -> Detect
+    let DetectOneCollision (actor1 : Actor) (actor : Actor) =
+        actor1.Bounds.Intersects actor.Bounds
+
+let UpdateActor bounds actors actor =
     actor 
         |> SetThrustAngle (Keyboard.GetState().GetPressedKeys())
         |> ApplyThrust (Keyboard.GetState())
         |> ApplyGravity 
         |> MoveActor bounds
+        |> DetectCollision actors
 
 type CloudHopperGame () as g =
     inherit Game()
@@ -105,7 +116,8 @@ type CloudHopperGame () as g =
     let mutable spriteBatch = Unchecked.defaultof<SpriteBatch>
     let mutable actors = []
     let actorData = [(Player, "player.png", Vector2(10.f,28.f));
-                     (Indicator, "green_arrow.png", Vector2(50.f,28.f))]
+                     (Indicator, "green_arrow.png", Vector2(50.f,28.f));
+                     (Obstacle, "cloud.png", Vector2(200.f,200.f));]
 
     override g.LoadContent () =
         spriteBatch <- new SpriteBatch(g.GraphicsDevice)
@@ -113,7 +125,7 @@ type CloudHopperGame () as g =
 
     override g.Update _ =
         actors <- actors 
-            |> List.map (UpdateActor g.GraphicsDevice.Viewport.Bounds)
+            |> List.map (UpdateActor g.GraphicsDevice.Viewport.Bounds actors)
 
     override g.Draw _ =
         g.GraphicsDevice.Clear Color.CornflowerBlue
